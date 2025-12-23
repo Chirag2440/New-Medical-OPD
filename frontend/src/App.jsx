@@ -4,9 +4,9 @@ import { useSelector, useDispatch } from 'react-redux';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { getMe } from './redux/authSlice';
-
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import Profile from './components/Profile';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -15,7 +15,8 @@ import DoctorDashboard from './pages/DoctorDashboard';
 import PatientDashboard from './pages/PatientDashboard';
 import BookAppointment from './pages/BookAppointment';
 import VideoConsultation from './pages/VideoConsultation';
-import Profile from './components/Profile';
+import ChatPage from './pages/ChatPage';
+import AIChatbot from './components/chatBot/AIChatbot';
 
 const PrivateRoute = ({ children, allowedRoles }) => {
   const { user, token } = useSelector((state) => state.auth);
@@ -47,11 +48,13 @@ function App() {
         <Navbar />
         <main className="flex-grow">
           <Routes>
+            {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/doctors" element={<DoctorList />} />
             
+            {/* Doctor Routes */}
             <Route 
               path="/doctor/dashboard" 
               element={
@@ -61,6 +64,7 @@ function App() {
               } 
             />
             
+            {/* Patient Routes */}
             <Route 
               path="/patient/dashboard" 
               element={
@@ -79,6 +83,7 @@ function App() {
               } 
             />
             
+            {/* Common Private Routes */}
             <Route 
               path="/video-consultation/:roomId" 
               element={
@@ -97,6 +102,17 @@ function App() {
               } 
             />
 
+            {/* Chat Route - Protected */}
+            <Route 
+              path="/chats" 
+              element={
+                <PrivateRoute>
+                  <ChatPage />
+                </PrivateRoute>
+              } 
+            />
+
+            {/* Fallback Route */}
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
@@ -112,6 +128,7 @@ function App() {
           draggable
           pauseOnHover
         />
+        <AIChatbot />
       </div>
     </Router>
   );

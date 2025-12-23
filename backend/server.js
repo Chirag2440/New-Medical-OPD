@@ -15,6 +15,7 @@ const patientRoutes = require('./routes/patient');
 const adminRoutes = require('./routes/admin');
 const appointmentRoutes = require('./routes/appointment');
 const paymentRoutes = require('./routes/payment');
+const chatRoutes = require('./routes/chat');
 
 // Initialize express app
 const app = express();
@@ -22,7 +23,7 @@ const app = express();
 // Create HTTP server
 const server = http.createServer(app);
 
-// Socket.io setup for video calls and real-time features
+// Socket.io setup for video calls, chat, and real-time features
 const io = socketIO(server, {
   cors: {
     origin: [
@@ -92,6 +93,7 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/chats', chatRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -106,17 +108,23 @@ app.get('/', (req, res) => {
       admin: '/api/admin',
       appointments: '/api/appointments',
       payments: '/api/payments',
+      chats: '/api/chats',
       health: '/api/health'
     }
   });
 });
 
-// Socket.io for video calls and real-time features
-const users = new Map(); // Map of socketId -> { userId, roomId, userType }
+// Socket.io for video calls, chat, and real-time features
+const users = new Map(); // Map of socketId -> { userId, roomId, chatId, userType }
 const rooms = new Map(); // Map of roomId -> Set of socketIds
+const chatRooms = new Map(); // Map of chatId -> Set of socketIds
 
 io.on('connection', (socket) => {
   console.log('🔌 User connected:', socket.id);
+
+  // ============================================
+  // VIDEO CONSULTATION EVENTS
+  // ============================================
 
   // Join video consultation room
   socket.on('join-room', ({ roomId, userId, userType }) => {
@@ -133,7 +141,7 @@ io.on('connection', (socket) => {
       }
       rooms.get(roomId).add(socket.id);
 
-      console.log(`👤 User ${userId} (${userType}) joined room ${roomId}`);
+      console.log(`👤 User ${userId} (${userType}) joined video room ${roomId}`);
 
       // Get all other users in the room
       const usersInRoom = Array.from(rooms.get(roomId))
@@ -157,7 +165,7 @@ io.on('connection', (socket) => {
         userType
       });
     } catch (error) {
-      console.error('Error joining room:', error);
+      console.error('Error joining video room:', error);
       socket.emit('error', { message: 'Failed to join room' });
     }
   });
@@ -189,7 +197,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Chat messages
+  // Video consultation messages
   socket.on('send-message', ({ roomId, message, sender }) => {
     try {
       io.to(roomId).emit('receive-message', {
@@ -198,9 +206,9 @@ io.on('connection', (socket) => {
         timestamp: new Date(),
         socketId: socket.id
       });
-      console.log(`💬 Message in room ${roomId} from ${sender}`);
+      console.log(`💬 Video room message in ${roomId} from ${sender}`);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error sending video room message:', error);
     }
   });
 
@@ -243,26 +251,132 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Leave room
+  // Leave video room
   socket.on('leave-room', ({ roomId }) => {
     try {
-      handleDisconnect(socket.id);
-      console.log(`👋 User left room ${roomId}`);
+      handleVideoRoomDisconnect(socket.id);
+      console.log(`👋 User left video room ${roomId}`);
     } catch (error) {
-      console.error('Error leaving room:', error);
+      console.error('Error leaving video room:', error);
     }
   });
 
+  // ============================================
+  // CHAT EVENTS
+  // ============================================
+
+  // Join chat room
+  socket.on('join-chat', ({ chatId, userId, userType }) => {
+    try {
+      const chatRoomId = `chat_${chatId}`;
+      socket.join(chatRoomId);
+      
+      // Update user info
+      const existingUser = users.get(socket.id) || {};
+      users.set(socket.id, { 
+        ...existingUser, 
+        userId, 
+        chatId: chatRoomId, 
+        userType 
+      });
+
+      // Add to chat rooms map
+      if (!chatRooms.has(chatRoomId)) {
+        chatRooms.set(chatRoomId, new Set());
+      }
+      chatRooms.get(chatRoomId).add(socket.id);
+
+      console.log(`💬 User ${userId} (${userType}) joined chat ${chatId}`);
+      
+      // Notify others in chat
+      socket.to(chatRoomId).emit('user-online', { userId, userType });
+    } catch (error) {
+      console.error('Error joining chat:', error);
+      socket.emit('error', { message: 'Failed to join chat' });
+    }
+  });
+
+  // Leave chat room
+  socket.on('leave-chat', ({ chatId, userId }) => {
+    try {
+      const chatRoomId = `chat_${chatId}`;
+      socket.leave(chatRoomId);
+      
+      // Remove from chat rooms map
+      if (chatRooms.has(chatRoomId)) {
+        chatRooms.get(chatRoomId).delete(socket.id);
+        if (chatRooms.get(chatRoomId).size === 0) {
+          chatRooms.delete(chatRoomId);
+        }
+      }
+
+      socket.to(chatRoomId).emit('user-offline', { userId });
+      console.log(`👋 User ${userId} left chat ${chatId}`);
+    } catch (error) {
+      console.error('Error leaving chat:', error);
+    }
+  });
+
+  // Send chat message via socket (real-time)
+  socket.on('send-chat-message', ({ chatId, message }) => {
+    try {
+      const chatRoomId = `chat_${chatId}`;
+      
+      // Broadcast to all users in the chat except sender
+      socket.to(chatRoomId).emit('receive-chat-message', {
+        message,
+        timestamp: new Date()
+      });
+      
+      console.log(`💬 Message sent in chat ${chatId}`);
+    } catch (error) {
+      console.error('Error sending chat message:', error);
+    }
+  });
+
+  // Typing indicator
+  socket.on('typing', ({ chatId, userId, userName, isTyping }) => {
+    try {
+      const chatRoomId = `chat_${chatId}`;
+      socket.to(chatRoomId).emit('user-typing', { 
+        userId, 
+        userName, 
+        isTyping 
+      });
+    } catch (error) {
+      console.error('Error with typing indicator:', error);
+    }
+  });
+
+  // Message read receipt
+  socket.on('message-read', ({ chatId, messageId, userId }) => {
+    try {
+      const chatRoomId = `chat_${chatId}`;
+      socket.to(chatRoomId).emit('message-read-receipt', { 
+        messageId, 
+        userId,
+        readAt: new Date()
+      });
+    } catch (error) {
+      console.error('Error with read receipt:', error);
+    }
+  });
+
+  // ============================================
+  // DISCONNECT HANDLING
+  // ============================================
+
   // Disconnect
   socket.on('disconnect', () => {
-    handleDisconnect(socket.id);
+    handleVideoRoomDisconnect(socket.id);
+    handleChatDisconnect(socket.id);
     console.log('🔌 User disconnected:', socket.id);
   });
 
-  // Helper function to handle disconnect
-  function handleDisconnect(socketId) {
+  // Helper function to handle video room disconnect
+  function handleVideoRoomDisconnect(socketId) {
     const user = users.get(socketId);
-    if (user) {
+    if (user && user.roomId) {
       const { roomId } = user;
       
       // Remove from rooms
@@ -275,10 +389,29 @@ io.on('connection', (socket) => {
 
       // Notify others in room
       socket.to(roomId).emit('user-disconnected', socketId);
-      
-      // Remove from users
-      users.delete(socketId);
     }
+  }
+
+  // Helper function to handle chat disconnect
+  function handleChatDisconnect(socketId) {
+    const user = users.get(socketId);
+    if (user && user.chatId) {
+      const { chatId, userId } = user;
+      
+      // Remove from chat rooms
+      if (chatRooms.has(chatId)) {
+        chatRooms.get(chatId).delete(socketId);
+        if (chatRooms.get(chatId).size === 0) {
+          chatRooms.delete(chatId);
+        }
+      }
+
+      // Notify others in chat
+      socket.to(chatId).emit('user-offline', { userId });
+    }
+    
+    // Remove from users map
+    users.delete(socketId);
   }
 });
 
@@ -372,6 +505,7 @@ server.listen(PORT, () => {
     ║   Port: ${PORT}                        ║
     ║   Environment: ${process.env.NODE_ENV || 'development'}        ║
     ║   API: http://localhost:${PORT}/api    ║
+    ║   Features: Video Calls + Live Chat  ║
     ╚══════════════════════════════════════╝
   `);
 });

@@ -13,6 +13,7 @@ import AppointmentManagement from './pages/AppointmentManagement';
 import PaymentManagement from './pages/PaymentManagement';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import AIChatbot from './components/chatBot/AIChatbot';
 
 const PrivateRoute = ({ children }) => {
   const { token, user } = useSelector((state) => state.auth);
@@ -93,6 +94,7 @@ function App() {
         draggable
         pauseOnHover
       />
+      <AIChatbot />
     </Router>
   );
 }

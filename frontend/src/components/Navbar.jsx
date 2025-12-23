@@ -1,14 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../redux/authSlice';
-import { FaUserMd, FaUserCircle, FaSignOutAlt, FaBars, FaTimes } from 'react-icons/fa';
+import { 
+  FaUserMd, 
+  FaUserCircle, 
+  FaSignOutAlt, 
+  FaBars, 
+  FaTimes, 
+  FaComments 
+} from 'react-icons/fa';
 
 const Navbar = () => {
   const { user, token } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (token && user) {
+      fetchUnreadCount();
+      
+      // Poll for unread messages every 30 seconds
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [token, user]);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/chats', {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.chats) {
+          // Calculate total unread messages
+          const total = data.chats.reduce((sum, chat) => {
+            const unread = user?.role === 'patient' 
+              ? chat.unreadCount?.patient || 0
+              : chat.unreadCount?.doctor || 0;
+            return sum + unread;
+          }, 0);
+          setUnreadCount(total);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching unread count:', error);
+    }
+  };
 
   const handleLogout = () => {
     dispatch(logout());
@@ -47,6 +92,21 @@ const Navbar = () => {
                 >
                   Dashboard
                 </Link>
+
+                {/* Chat Link with Unread Badge */}
+                <Link 
+                  to="/chats" 
+                  className="text-gray-700 hover:text-blue-600 transition font-medium flex items-center space-x-2 relative"
+                >
+                  <FaComments className="text-xl" />
+                  <span>Messages</span>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </Link>
+
                 <div className="relative group">
                   <button className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 transition">
                     {user?.photo ? (
@@ -125,6 +185,22 @@ const Navbar = () => {
                   >
                     Dashboard
                   </Link>
+
+                  {/* Chat Link - Mobile */}
+                  <Link 
+                    to="/chats" 
+                    className="text-gray-700 hover:text-blue-600 transition font-medium py-2 flex items-center space-x-2 relative"
+                    onClick={closeMobileMenu}
+                  >
+                    <FaComments className="text-xl" />
+                    <span>Messages</span>
+                    {unreadCount > 0 && (
+                      <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center ml-2">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+                  </Link>
+
                   <Link 
                     to="/profile" 
                     className="text-gray-700 hover:text-blue-600 transition font-medium py-2"

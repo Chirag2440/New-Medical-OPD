@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Doctor = require('../models/Doctor');
 const Appointment = require('../models/Appointment');
 const Payment = require('../models/Payment');
+const Chat = require('../models/Chat');
 
 exports.getDashboardStats = async (req, res) => {
   try {
@@ -168,6 +169,62 @@ exports.deleteUser = async (req, res) => {
       message: 'User deleted successfully'
     });
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+exports.createMissingChats = async (req, res) => {
+  try {
+    // Find all appointments that don't have a chat
+    const appointments = await Appointment.find({
+      status: { $in: ['pending', 'confirmed', 'completed'] }
+    });
+
+    let created = 0;
+    let skipped = 0;
+    const errors = [];
+
+    for (const appointment of appointments) {
+      const existingChat = await Chat.findOne({ appointment: appointment._id });
+      
+      if (existingChat) {
+        skipped++;
+        continue;
+      }
+
+      try {
+        await Chat.create({
+          appointment: appointment._id,
+          patient: appointment.patient,
+          doctor: appointment.doctor,
+          messages: [],
+          isActive: true
+        });
+        created++;
+      } catch (error) {
+        errors.push({
+          appointmentId: appointment._id,
+          error: error.message
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Missing chats created successfully',
+      summary: {
+        created,
+        skipped,
+        total: appointments.length,
+        errors: errors.length
+      },
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error('Create Missing Chats Error:', error);
     res.status(500).json({
       success: false,
       message: error.message

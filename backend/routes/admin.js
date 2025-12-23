@@ -11,5 +11,6 @@ router.get('/patients', adminController.getAllPatients);
 router.get('/patients/:id', adminController.getPatientById);
 router.put('/approve-doctor/:id', adminController.approveDoctor);
 router.delete('/users/:id', adminController.deleteUser);
+router.post('/create-missing-chats', adminController.createMissingChats);
 
 module.exports = router;
