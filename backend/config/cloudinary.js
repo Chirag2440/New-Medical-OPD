@@ -8,18 +8,34 @@ cloudinary.config({
 
 exports.uploadToCloudinary = async (file, folder) => {
   return new Promise((resolve, reject) => {
+    // Check if file is PDF or document
+    const isPDF = file.mimetype === 'application/pdf';
+    const isImage = file.mimetype.startsWith('image/');
+    
+    const uploadOptions = {
+      folder: folder || 'chat-files',
+      resource_type: isPDF ? 'raw' : 'auto',
+      type: 'upload' // Public upload, not authenticated
+    };
+    
+    // Only apply transformations to images
+    if (isImage) {
+      uploadOptions.transformation = [
+        { width: 500, height: 500, crop: 'limit' },
+        { quality: 'auto' }
+      ];
+    }
+    
     const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder: folder,
-        resource_type: 'auto',
-        transformation: [
-          { width: 500, height: 500, crop: 'limit' },
-          { quality: 'auto' }
-        ]
-      },
+      uploadOptions,
       (error, result) => {
-        if (error) reject(error);
-        else resolve(result);
+        if (error) {
+          console.error('Cloudinary upload error:', error);
+          reject(error);
+        } else {
+          console.log('File uploaded to Cloudinary:', result.secure_url);
+          resolve(result);
+        }
       }
     );
     uploadStream.end(file.buffer);
