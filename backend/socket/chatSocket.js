@@ -6,88 +6,72 @@ module.exports = (io) => {
     console.log('User connected:', socket.id);
 
     // Join appointment chat room
-    socket.on('join-chat', async ({ appointmentId, userId, userType }) => {
-      socket.join(`chat-${appointmentId}`);
-      socket.appointmentId = appointmentId;
+    socket.on('join-chat', async ({ chatId, userId, userType }) => {
+      socket.join(`chat-${chatId}`);
+      socket.chatId = chatId;
       socket.userId = userId;
       socket.userType = userType;
       
-      console.log(`${userType} ${userId} joined chat ${appointmentId}`);
+      console.log(`${userType} ${userId} joined chat ${chatId}`);
       
       // Notify other party
-      socket.to(`chat-${appointmentId}`).emit('user-joined', {
+      socket.to(`chat-${chatId}`).emit('user-joined', {
         userId,
         userType
       });
     });
 
     // Handle new message
-    socket.on('send-message', async (data) => {
+    socket.on('send-chat-message', async (data) => {
       try {
-        const { appointmentId, text, messageType, attachment } = data;
+        const { chatId, message } = data;
         
-        // Save message to database
-        const message = new Message({
-          appointmentId,
-          senderId: socket.userId,
-          senderType: socket.userType,
-          senderName: data.senderName,
-          messageType: messageType || 'text',
-          text,
-          attachment
-        });
-        
-        await message.save();
-        
-        // Update chat last message
-        await Chat.findOneAndUpdate(
-          { appointmentId },
-          { lastMessage: message._id },
-          { upsert: true }
-        );
+        if (!chatId || !message) {
+          console.error('Missing chatId or message');
+          return;
+        }
+
+        console.log('📨 Received message via socket:', { chatId, messageId: message._id });
         
         // Emit to all users in the room
-        io.to(`chat-${appointmentId}`).emit('receive-message', {
-          ...message.toObject(),
-          timestamp: message.createdAt
+        io.to(`chat-${chatId}`).emit('receive-chat-message', {
+          message: message,
+          timestamp: new Date()
         });
         
       } catch (error) {
-        console.error('Error sending message:', error);
+        console.error('Error sending message via socket:', error);
         socket.emit('error', { message: 'Failed to send message' });
       }
     });
 
     // Handle typing indicator
-    socket.on('typing', ({ appointmentId, isTyping }) => {
-      socket.to(`chat-${appointmentId}`).emit('user-typing', {
-        userId: socket.userId,
-        userType: socket.userType,
+    socket.on('typing', ({ chatId, userId, userName, isTyping }) => {
+      socket.to(`chat-${chatId}`).emit('user-typing', {
+        userId,
+        userName,
         isTyping
       });
     });
 
-    // Mark messages as read
-    socket.on('mark-read', async ({ appointmentId, messageIds }) => {
+    // Handle read receipt
+    socket.on('read-message', async ({ chatId, messageId, readAt }) => {
       try {
-        await Message.updateMany(
-          { _id: { $in: messageIds }, appointmentId },
-          { read: true, readAt: new Date() }
-        );
-        
-        socket.to(`chat-${appointmentId}`).emit('messages-read', {
-          messageIds
+        io.to(`chat-${chatId}`).emit('message-read-receipt', {
+          messageId,
+          readAt,
+          userId: socket.userId
         });
       } catch (error) {
-        console.error('Error marking messages as read:', error);
+        console.error('Error marking message as read:', error);
       }
     });
 
     // Handle disconnect
     socket.on('disconnect', () => {
       console.log('User disconnected:', socket.id);
-      if (socket.appointmentId) {
-        socket.to(`chat-${socket.appointmentId}`).emit('user-left', {
+      if (socket.chatId) {
+        socket.to(`chat-${socket.chatId}`).emit('user-left', {
           userId: socket.userId,
           userType: socket.userType
         });

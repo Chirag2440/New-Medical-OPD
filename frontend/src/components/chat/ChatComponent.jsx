@@ -357,20 +357,61 @@ const ChatComponent = ({ appointmentId, socket, currentUser }) => {
                 >
                   {message.fileUrl && (
                     <div className="mb-2">
-                      <a
-                        href={message.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`hover:underline flex items-center gap-2 ${
-                          isOwnMessage ? 'text-blue-100' : 'text-blue-600'
-                        }`}
-                      >
-                        <FaPaperclip />
-                        View Attachment
-                      </a>
+                      {message.messageType === 'image' ? (
+                        <img 
+                          src={message.fileUrl} 
+                          alt="Shared image"
+                          className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-80"
+                          onClick={() => window.open(message.fileUrl, '_blank')}
+                        />
+                      ) : message.messageType === 'file' ? (
+                        <div className={`border-2 border-dashed rounded-lg p-3 flex items-center gap-2 ${
+                          isOwnMessage ? 'border-blue-200 bg-blue-700' : 'border-blue-400 bg-gray-100'
+                        }`}>
+                          <FaPaperclip className={isOwnMessage ? 'text-blue-100' : 'text-blue-600'} />
+                          <a
+                            href={message.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`hover:underline ${
+                              isOwnMessage ? 'text-blue-100' : 'text-blue-600'
+                            } font-semibold flex-1 truncate`}
+                          >
+                            {message.content.replace('📎 ', '') || 'Download File'}
+                          </a>
+                          <a
+                            href={message.fileUrl}
+                            download
+                            className={`text-sm px-2 py-1 rounded ${
+                              isOwnMessage 
+                                ? 'bg-blue-500 text-white hover:bg-blue-400' 
+                                : 'bg-blue-500 text-white hover:bg-blue-600'
+                            }`}
+                          >
+                            ⬇
+                          </a>
+                        </div>
+                      ) : (
+                        <a
+                          href={message.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`hover:underline flex items-center gap-2 ${
+                            isOwnMessage ? 'text-blue-100' : 'text-blue-600'
+                          }`}
+                        >
+                          <FaPaperclip />
+                          View Attachment
+                        </a>
+                      )}
                     </div>
                   )}
-                  <p className="break-words whitespace-pre-wrap">{message.content || ''}</p>
+                  {message.content && !message.fileUrl && (
+                    <p className="break-words whitespace-pre-wrap">{message.content}</p>
+                  )}
+                  {message.content && message.fileUrl && !message.content.startsWith('📎') && (
+                    <p className="break-words whitespace-pre-wrap text-sm">{message.content}</p>
+                  )}
                   <div className={`flex items-center gap-1 mt-1 text-xs ${
                     isOwnMessage ? 'text-blue-100' : 'text-gray-500'
                   }`}>
