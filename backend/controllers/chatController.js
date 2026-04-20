@@ -99,10 +99,11 @@ exports.sendMessage = async (req, res) => {
     const { chatId } = req.params;
     const { content } = req.body;
 
-    if (!content || !content.trim()) {
+    // Allow either text content OR file, but not both empty
+    if ((!content || !content.trim()) && !req.file) {
       return res.status(400).json({
         success: false,
-        message: 'Message content is required'
+        message: 'Message content or file is required'
       });
     }
 
@@ -127,17 +128,50 @@ exports.sendMessage = async (req, res) => {
       });
     }
 
-    const message = {
+    let message = {
       sender: req.user.id,
       senderModel: req.user.role === 'doctor' ? 'Doctor' : 'User',
-      content,
+      content: content || (req.file ? `📎 ${req.file.originalname}` : ''),
       messageType: 'text',
       isRead: false
     };
 
+    // Handle file upload
+    if (req.file) {
+      try {
+        const uploadResult = await uploadToCloudinary(req.file);
+        
+        message.fileUrl = uploadResult.secure_url;
+        
+        // Determine message type based on file mimetype
+        if (req.file.mimetype.startsWith('image/')) {
+          message.messageType = 'image';
+        } else if (req.file.mimetype === 'application/pdf') {
+          message.messageType = 'file';
+        }
+
+        // If no text content, use filename as content
+        if (!content || !content.trim()) {
+          message.content = `📎 ${req.file.originalname}`;
+        }
+
+        console.log('✅ File uploaded successfully:', uploadResult.secure_url);
+      } catch (uploadError) {
+        console.error('❌ Cloudinary upload error:', uploadError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to upload file. Please try again.',
+          error: uploadError.message
+        });
+      }
+    }
+
     chat.messages.push(message);
 
-    chat.lastMessage = content;
+    // Set last message
+    chat.lastMessage = message.messageType === 'text' 
+      ? (content || `📎 ${req.file?.originalname || 'File'}`)
+      : `📎 ${req.file?.originalname || 'File'}`;
     chat.lastMessageAt = new Date();
 
     if (isPatient) {
@@ -159,7 +193,8 @@ exports.sendMessage = async (req, res) => {
     console.error('Send Message Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to send message'
+      message: 'Failed to send message',
+      error: error.message
     });
   }
 };
