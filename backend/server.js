@@ -40,8 +40,8 @@ const io = socketIO(server, {
 // Middleware
 app.use(cors({
   origin: [
-    process.env.FRONTEND_URL || 'http://localhost:3000',
-    process.env.ADMIN_URL || 'http://localhost:3001'
+    process.env.FRONTEND_URL || 'https://new-medical-opd-1.onrender.com',
+    process.env.ADMIN_URL || 'https://new-medical-opd-2.onrender.com'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
@@ -114,28 +114,24 @@ app.get('/', (req, res) => {
   });
 });
 
-// Socket.io for video calls, chat, and real-time features
-const users = new Map(); // Map of socketId -> { userId, roomId, chatId, userType }
-const rooms = new Map(); // Map of roomId -> Set of socketIds
-const chatRooms = new Map(); // Map of chatId -> Set of socketIds
+
+const users = new Map(); 
+const rooms = new Map(); 
+const chatRooms = new Map(); 
 
 io.on('connection', (socket) => {
   console.log('🔌 User connected:', socket.id);
 
-  // ============================================
-  // VIDEO CONSULTATION EVENTS
-  // ============================================
-
-  // Join video consultation room
+  
   socket.on('join-room', ({ roomId, userId, userType }) => {
     try {
-      // Add user to users map
+      
       users.set(socket.id, { userId, roomId, userType });
 
-      // Add socket to room
+      
       socket.join(roomId);
 
-      // Add to rooms map
+      
       if (!rooms.has(roomId)) {
         rooms.set(roomId, new Set());
       }
@@ -155,10 +151,8 @@ io.on('connection', (socket) => {
           };
         });
 
-      // Send list of users in room to the new user
       socket.emit('all-users', usersInRoom);
 
-      // Notify other users about new user
       socket.to(roomId).emit('user-joined', {
         socketId: socket.id,
         userId,
@@ -170,7 +164,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // WebRTC signaling - sending offer
+  
   socket.on('sending-signal', ({ userToSignal, signal, callerId }) => {
     try {
       io.to(userToSignal).emit('user-joined', { signal, callerId });
@@ -212,7 +206,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Toggle video
   socket.on('toggle-video', ({ roomId, userId, videoEnabled }) => {
     try {
       socket.to(roomId).emit('user-video-toggle', { userId, videoEnabled, socketId: socket.id });
@@ -222,7 +215,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Toggle audio
   socket.on('toggle-audio', ({ roomId, userId, audioEnabled }) => {
     try {
       socket.to(roomId).emit('user-audio-toggle', { userId, audioEnabled, socketId: socket.id });
@@ -232,7 +224,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Screen sharing
   socket.on('start-screen-share', ({ roomId }) => {
     try {
       socket.to(roomId).emit('user-screen-share-started', { socketId: socket.id });
@@ -251,7 +242,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Leave video room
   socket.on('leave-room', ({ roomId }) => {
     try {
       handleVideoRoomDisconnect(socket.id);
@@ -261,17 +251,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  // ============================================
-  // CHAT EVENTS
-  // ============================================
 
-  // Join chat room
   socket.on('join-chat', ({ chatId, userId, userType }) => {
     try {
       const chatRoomId = `chat_${chatId}`;
       socket.join(chatRoomId);
       
-      // Update user info
       const existingUser = users.get(socket.id) || {};
       users.set(socket.id, { 
         ...existingUser, 
@@ -280,7 +265,6 @@ io.on('connection', (socket) => {
         userType 
       });
 
-      // Add to chat rooms map
       if (!chatRooms.has(chatRoomId)) {
         chatRooms.set(chatRoomId, new Set());
       }
@@ -288,7 +272,7 @@ io.on('connection', (socket) => {
 
       console.log(`💬 User ${userId} (${userType}) joined chat ${chatId}`);
       
-      // Notify others in chat
+    
       socket.to(chatRoomId).emit('user-online', { userId, userType });
     } catch (error) {
       console.error('Error joining chat:', error);
@@ -317,12 +301,11 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Send chat message via socket (real-time)
+  
   socket.on('send-chat-message', ({ chatId, message }) => {
     try {
       const chatRoomId = `chat_${chatId}`;
       
-      // Broadcast to all users in the chat except sender
       socket.to(chatRoomId).emit('receive-chat-message', {
         message,
         timestamp: new Date()
@@ -361,10 +344,6 @@ io.on('connection', (socket) => {
       console.error('Error with read receipt:', error);
     }
   });
-
-  // ============================================
-  // DISCONNECT HANDLING
-  // ============================================
 
   // Disconnect
   socket.on('disconnect', () => {

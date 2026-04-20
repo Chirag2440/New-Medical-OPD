@@ -7,7 +7,7 @@ export const initializeSocket = (token) => {
     return socket;
   }
 
-  socket = io('http://localhost:5000', {
+  socket = io('http://localhost:5000/api', {
     auth: {
       token: token
     },
