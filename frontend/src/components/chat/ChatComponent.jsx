@@ -96,7 +96,7 @@ const ChatComponent = ({ appointmentId, socket, currentUser }) => {
       console.log('🔍 Fetching chat for appointment:', appointmentId);
 
       const response = await fetch(
-        `http://localhost:5000/api/chats/appointment/${appointmentId}`,
+        `${process.env.REACT_APP_API_URL}/api/chats/appointment/${appointmentId}`,
         {
           headers: { 
             'Authorization': `Bearer ${token}`,
