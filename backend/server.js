@@ -27,8 +27,8 @@ const server = http.createServer(app);
 const io = socketIO(server, {
   cors: {
     origin: [
-      process.env.FRONTEND_URL || 'http://localhost:3000',
-      process.env.ADMIN_URL || 'http://localhost:3001'
+      process.env.FRONTEND_URL || 'https://new-medical-opd-1.onrender.com',
+      process.env.ADMIN_URL || 'https://new-medical-opd-2.onrender.com'
     ],
     methods: ['GET', 'POST'],
     credentials: true
