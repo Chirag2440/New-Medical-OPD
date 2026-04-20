@@ -145,12 +145,8 @@ exports.sendMessage = async (req, res) => {
         const originalFilename = uploadResult.originalFilename || req.file.originalname;
         const fileUrl = uploadResult.secure_url;
         
-        // For PDFs, ensure the URL includes the PDF format parameter
-        if (req.file.mimetype === 'application/pdf') {
-          message.fileUrl = `${fileUrl}?attachment=true`;
-        } else {
-          message.fileUrl = fileUrl;
-        }
+        // Store clean URL without attachment parameter
+        message.fileUrl = fileUrl;
         
         // Store original filename in message for proper download
         message.fileName = originalFilename;

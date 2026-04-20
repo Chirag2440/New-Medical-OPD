@@ -17,11 +17,10 @@ exports.uploadToCloudinary = async (file, folder) => {
     
     const uploadOptions = {
       folder: folder || 'chat-files',
-      resource_type: isPDF ? 'raw' : 'auto',
-      type: 'upload', // Public upload, not authenticated
+      resource_type: 'auto',
+      type: 'upload', // Public upload
       original_filename: file.originalname,
       filename_override: file.originalname.replace(/\.[^/.]+$/, ''), // Remove extension
-      format: fileExtension // Preserve original format
     };
     
     // Only apply transformations to images
@@ -39,8 +38,17 @@ exports.uploadToCloudinary = async (file, folder) => {
           console.error('Cloudinary upload error:', error);
           reject(error);
         } else {
-          // Return object with proper filename
+          // Return object with proper filename and format-specific URL
           result.originalFilename = file.originalname;
+          result.originalExtension = fileExtension;
+          
+          // For PDFs, ensure the URL downloads as PDF
+          if (isPDF) {
+            result.downloadUrl = result.secure_url;
+          } else {
+            result.downloadUrl = result.secure_url;
+          }
+          
           console.log('File uploaded to Cloudinary:', result.secure_url);
           resolve(result);
         }
