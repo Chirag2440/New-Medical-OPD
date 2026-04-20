@@ -22,7 +22,7 @@ const ChatList = ({ onSelectChat, currentUser }) => {
         return;
       }
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/chats`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/chats`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
