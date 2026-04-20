@@ -48,7 +48,7 @@ const ChatPage = () => {
   const fetchCurrentUser = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('https://new-medical-opd.onrender.com/api/auth/me', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/auth/me`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -87,7 +87,7 @@ const ChatPage = () => {
   const fetchChatStats = async (user) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/chats', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/chats`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
