@@ -242,6 +242,38 @@ const ChatComponent = ({ appointmentId, socket, currentUser }) => {
     }
   };
 
+  const handleDownloadFile = async (fileUrl, fileName) => {
+    try {
+      // Fetch the file from Cloudinary
+      const response = await fetch(fileUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download: ${response.status}`);
+      }
+      
+      // Get the file as a blob
+      const blob = await response.blob();
+      
+      // Create a temporary URL for the blob
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // Create a temporary anchor element and click it
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName || 'download';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      // Fallback: open in new tab
+      window.open(fileUrl, '_blank');
+    }
+  };
+
   const handleRetry = () => {
     setRetrying(true);
     fetchChat();
@@ -379,9 +411,9 @@ const ChatComponent = ({ appointmentId, socket, currentUser }) => {
                           >
                             {message.fileName || message.content.replace('📎 ', '') || 'Download File'}
                           </a>
-                          <a
-                            href={message.fileUrl}
-                            download={message.fileName || 'download'}
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadFile(message.fileUrl, message.fileName || message.content.replace('📎 ', ''))}
                             className={`text-sm px-2 py-1 rounded ${
                               isOwnMessage 
                                 ? 'bg-blue-500 text-white hover:bg-blue-400' 
@@ -389,7 +421,7 @@ const ChatComponent = ({ appointmentId, socket, currentUser }) => {
                             }`}
                           >
                             ⬇
-                          </a>
+                          </button>
                         </div>
                       ) : (
                         <a
