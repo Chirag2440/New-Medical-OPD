@@ -141,7 +141,19 @@ exports.sendMessage = async (req, res) => {
       try {
         const uploadResult = await uploadToCloudinary(req.file);
         
-        message.fileUrl = uploadResult.secure_url;
+        // Preserve the original filename with proper format
+        const originalFilename = uploadResult.originalFilename || req.file.originalname;
+        const fileUrl = uploadResult.secure_url;
+        
+        // For PDFs, ensure the URL includes the PDF format parameter
+        if (req.file.mimetype === 'application/pdf') {
+          message.fileUrl = `${fileUrl}?attachment=true`;
+        } else {
+          message.fileUrl = fileUrl;
+        }
+        
+        // Store original filename in message for proper download
+        message.fileName = originalFilename;
         
         // Determine message type based on file mimetype
         if (req.file.mimetype.startsWith('image/')) {
@@ -152,10 +164,10 @@ exports.sendMessage = async (req, res) => {
 
         // If no text content, use filename as content
         if (!content || !content.trim()) {
-          message.content = `📎 ${req.file.originalname}`;
+          message.content = `📎 ${originalFilename}`;
         }
 
-        console.log('✅ File uploaded successfully:', uploadResult.secure_url);
+        console.log('✅ File uploaded successfully:', fileUrl);
       } catch (uploadError) {
         console.error('❌ Cloudinary upload error:', uploadError);
         return res.status(500).json({

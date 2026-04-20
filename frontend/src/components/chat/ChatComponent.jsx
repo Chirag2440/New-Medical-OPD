@@ -377,11 +377,11 @@ const ChatComponent = ({ appointmentId, socket, currentUser }) => {
                               isOwnMessage ? 'text-blue-100' : 'text-blue-600'
                             } font-semibold flex-1 truncate`}
                           >
-                            {message.content.replace('📎 ', '') || 'Download File'}
+                            {message.fileName || message.content.replace('📎 ', '') || 'Download File'}
                           </a>
                           <a
                             href={message.fileUrl}
-                            download
+                            download={message.fileName || 'download'}
                             className={`text-sm px-2 py-1 rounded ${
                               isOwnMessage 
                                 ? 'bg-blue-500 text-white hover:bg-blue-400' 
