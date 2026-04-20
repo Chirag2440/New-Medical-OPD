@@ -244,33 +244,96 @@ const ChatComponent = ({ appointmentId, socket, currentUser }) => {
 
   const handleDownloadFile = async (fileUrl, fileName) => {
     try {
-      // Fetch the file from Cloudinary
-      const response = await fetch(fileUrl);
+      // Clean up filename
+      let downloadFileName = (fileName || 'download').trim();
       
-      if (!response.ok) {
-        throw new Error(`Failed to download: ${response.status}`);
+      // Remove emoji if present
+      downloadFileName = downloadFileName.replace(/📎\s*/, '');
+      
+      // Ensure filename has proper extension
+      if (!downloadFileName.includes('.')) {
+        downloadFileName += '.pdf';
       }
       
-      // Get the file as a blob
-      const blob = await response.blob();
+      console.log('📥 Download initiated:', { downloadFileName, fileUrl });
       
-      // Create a temporary URL for the blob
-      const blobUrl = window.URL.createObjectURL(blob);
+      // Use Cloudinary's built-in download functionality by modifying the URL
+      // This is the most reliable method for cross-origin file downloads
+      let optimizedUrl = fileUrl;
       
-      // Create a temporary anchor element and click it
+      // Add dl (download) parameter to Cloudinary URL
+      if (optimizedUrl.includes('res.cloudinary.com')) {
+        if (optimizedUrl.includes('?')) {
+          optimizedUrl += '&dl=' + encodeURIComponent(downloadFileName);
+        } else {
+          optimizedUrl += '?dl=' + encodeURIComponent(downloadFileName);
+        }
+      }
+      
+      // Method 1: Direct link click (most reliable for Cloudinary)
       const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName || 'download';
-      document.body.appendChild(link);
-      link.click();
+      link.href = optimizedUrl;
+      link.download = downloadFileName;
+      link.setAttribute('target', '_blank');
+      link.setAttribute('rel', 'noopener noreferrer');
       
-      // Clean up
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
+      // Set as temporary element
+      Object.assign(link.style, {
+        display: 'none',
+        visibility: 'hidden',
+        position: 'absolute',
+        left: '-9999px'
+      });
+      
+      document.body.appendChild(link);
+      
+      // Trigger download
+      setTimeout(() => {
+        link.click();
+        // Clean up after a short delay
+        setTimeout(() => {
+          document.body.removeChild(link);
+        }, 100);
+      }, 0);
+      
+      console.log('✅ Download triggered successfully');
     } catch (error) {
-      console.error('Error downloading file:', error);
-      // Fallback: open in new tab
-      window.open(fileUrl, '_blank');
+      console.error('❌ Error in download handler:', error);
+      
+      // Fallback: Try fetch as blob method
+      try {
+        console.log('🔄 Trying fetch method as fallback...');
+        const fileName_fallback = (fileName || 'download.pdf').replace(/📎\s*/, '');
+        
+        const response = await fetch(fileUrl, {
+          mode: 'no-cors',
+          method: 'GET'
+        });
+        
+        if (response.status === 0 || response.ok) { // status 0 with no-cors is success
+          const blob = await response.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          
+          const fallbackLink = document.createElement('a');
+          fallbackLink.href = blobUrl;
+          fallbackLink.download = fileName_fallback;
+          fallbackLink.style.display = 'none';
+          
+          document.body.appendChild(fallbackLink);
+          fallbackLink.click();
+          
+          setTimeout(() => {
+            document.body.removeChild(fallbackLink);
+            window.URL.revokeObjectURL(blobUrl);
+          }, 100);
+          
+          console.log('✅ Fetch method succeeded');
+        }
+      } catch (fetchError) {
+        console.error('⚠️ Fetch method failed, opening in new tab:', fetchError);
+        // Last resort: open in new tab
+        window.open(fileUrl, '_blank');
+      }
     }
   };
 
