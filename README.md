@@ -2,6 +2,9 @@
 
 A complete Medical OPD (Outpatient Department) management system built with MERN stack featuring video consultations, payment integration, and comprehensive admin controls.
 
+Frontend URL -> [https://new-medical-opd-1.onrender.com](https://new-medical-opd-1.onrender.com)
+Admin URL -> [https://new-medical-opd-2.onrender.com](https://new-medical-opd-2.onrender.com)
+
 ## 🚀 Features
 
 ### Patient Features
@@ -262,5 +265,3 @@ Create admin user manually in MongoDB:
   isActive: true
 }
 ```
-Frontend URL -> [https://new-medical-opd-1.onrender.com](https://new-medical-opd-1.onrender.com)
-Admin URL -> [https://new-medical-opd-2.onrender.com](https://new-medical-opd-2.onrender.com)
